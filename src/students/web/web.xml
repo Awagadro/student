@@ -2,15 +2,28 @@
   Web Application 2.3//EN' 'http://java.sun.com/dtd/web-app_2_3.dtd'>
 
 <web-app>
+	<display-name>Welcome to Students personnel</display-name>
+	<description>
+		Welcome to Students personnel
+	</description>
 
 	<servlet>
-		<servlet-name>hello</servlet-name>
+		<servlet-name>Hello</servlet-name>
 		<servlet-class>students.web.HelloWorldServlet</servlet-class>
 	</servlet>
 
 	<servlet-mapping>
-		<servlet-name>hello</servlet-name>
+		<servlet-name>Hello</servlet-name>
 		<url-pattern>/hello</url-pattern>
 	</servlet-mapping>
+
+	<taglib>
+		<taglib-uri>
+			http://www.someurl.ru
+		</taglib-uri>
+		<taglib-location>
+			/WEB-INF/hello.tld
+		</taglib-location>
+	</taglib>
 
 </web-app>
