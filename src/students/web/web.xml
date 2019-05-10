@@ -1,29 +1,36 @@
-<!DOCTYPE web-app PUBLIC '-//Sun Microsystems, Inc.//DTD
-  Web Application 2.3//EN' 'http://java.sun.com/dtd/web-app_2_3.dtd'>
-
-<web-app>
-	<display-name>Welcome to Students personnel</display-name>
-	<description>
-		Welcome to Students personnel
-	</description>
-
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app version="2.5" xmlns="http://java.sun.com/xml/ns/javaee"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd">
+	<display-name>Students personnel</display-name>
 	<servlet>
-		<servlet-name>Hello</servlet-name>
-		<servlet-class>students.web.HelloWorldServlet</servlet-class>
+		<servlet-name>MainFrameServlet</servlet-name>
+		<servlet-class>students.web.MainFrameServlet</servlet-class>
 	</servlet>
-
+	<servlet>
+		<servlet-name>StudentFrameServlet</servlet-name>
+		<servlet-class>students.web.StudentFrameServlet</servlet-class>
+	</servlet>
+	<servlet>
+		<servlet-name>SimpleList</servlet-name>
+		<servlet-class>students.web.SimpleList</servlet-class>
+	</servlet>
 	<servlet-mapping>
-		<servlet-name>Hello</servlet-name>
-		<url-pattern>/hello</url-pattern>
+		<servlet-name>MainFrameServlet</servlet-name>
+		<url-pattern>/main</url-pattern>
 	</servlet-mapping>
-
-	<taglib>
-		<taglib-uri>
-			http://www.someurl.ru
-		</taglib-uri>
-		<taglib-location>
-			/WEB-INF/hello.tld
-		</taglib-location>
-	</taglib>
-
+	<servlet-mapping>
+		<servlet-name>StudentFrameServlet</servlet-name>
+		<url-pattern>/edit</url-pattern>
+	</servlet-mapping>
+	<servlet-mapping>
+		<servlet-name>SimpleList</servlet-name>
+		<url-pattern>/simple</url-pattern>
+	</servlet-mapping>
+	<resource-ref>
+		<description>DB Connection</description>
+		<res-ref-name>jdbc/StudentsDS</res-ref-name>
+		<res-type>javax.sql.DataSource</res-type>
+		<res-auth>Container</res-auth>
+	</resource-ref>
 </web-app>

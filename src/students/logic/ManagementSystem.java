@@ -2,7 +2,6 @@ package students.logic;
 
 import java.sql.Connection;
 import java.sql.Date;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -11,195 +10,146 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import javax.naming.Context;
+import javax.naming.InitialContext;
+import javax.naming.NamingException;
+import javax.sql.DataSource;
+
 public class ManagementSystem {
 	private static Connection con;
 	private static ManagementSystem instance;
+	private static DataSource dataSource;
 
-	private ManagementSystem() throws Exception {
-		try {
-			Class.forName("org.postgresql.Driver"); // выбираем нужный драйвер
-			String url = "jdbc:postgresql://localhost:5432/students"; // указываем путь до базы
-			con = DriverManager.getConnection(url, "postgres", "1"); // postgres- user, 1- пароль
-		} catch (ClassNotFoundException e) {
-			throw new Exception(e);
-		} catch (SQLException e) {
-			throw new Exception(e);
-		}
+	private ManagementSystem() {
 	}
 
-	public static synchronized ManagementSystem getInstance() throws Exception {
+	public static synchronized ManagementSystem getInstance() {
 		if (instance == null) {
-			instance = new ManagementSystem();
+			try {
+				instance = new ManagementSystem();
+				Context ctx = new InitialContext();
+				instance.dataSource = (DataSource) ctx.lookup("java:comp/env/jdbc/StudentsDS");
+				con = dataSource.getConnection();
+			} catch (NamingException e) {
+				e.printStackTrace();
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
 		}
 		return instance;
 	}
 
-	public List<Group> getGroups() throws SQLException {
-		List<Group> groups = new ArrayList<Group>();
-
-		Statement stmt = null;
-		ResultSet rs = null;
-		try {
-			stmt = con.createStatement();
-			rs = stmt.executeQuery("SELECT group_id, group_name, curator, speciality FROM groups");
-			while (rs.next()) {
-				Group gr = new Group();
-				gr.setGroupId(rs.getInt(1));
-				gr.setNameGroup(rs.getString(2));
-				gr.setCurator(rs.getString(3));
-				gr.setSpeciality(rs.getString(4));
-
-				groups.add(gr);
-			}
-		} finally {
-			if (rs != null) {
-				rs.close();
-			}
-			if (stmt != null) {
-				stmt.close();
-			}
+	public List getGroups() throws SQLException {
+		List groups = new ArrayList();
+		Statement stmt = con.createStatement();
+		ResultSet rs = stmt.executeQuery("SELECT group_id, group_name, curator, speciality FROM groups");
+		while (rs.next()) {
+			Group gr = new Group();
+			gr.setGroupId(rs.getInt(1));
+			gr.setNameGroup(rs.getString(2));
+			gr.setCurator(rs.getString(3));
+			gr.setSpeciality(rs.getString(4));
+			groups.add(gr);
 		}
+		rs.close();
+		stmt.close();
 		return groups;
 	}
 
-	public Collection<Student> getAllStudents() throws SQLException {
-		Collection<Student> students = new ArrayList<Student>();
-
-		Statement stmt = null;
-		ResultSet rs = null;
-		try {
-			stmt = con.createStatement();
-			rs = stmt.executeQuery("SELECT student_id, first_name, patronymic, sur_name, "
-					+ "sex, date_of_birth, group_id, education_year FROM students "
-					+ "ORDER BY sur_name, first_name, patronymic");
-			while (rs.next()) {
-				Student st = new Student(rs);
-				students.add(st);
-			}
-		} finally {
-			if (rs != null) {
-				rs.close();
-			}
-			if (stmt != null) {
-				stmt.close();
-			}
+	public Collection getAllStudents() throws SQLException {
+		Collection students = new ArrayList();
+		Statement stmt = con.createStatement();
+		ResultSet rs = stmt.executeQuery("SELECT student_id, first_name, patronymic, sur_name, "
+				+ "sex, date_of_birth, group_id, education_year FROM students ORDER BY sur_name, first_name, patronymic");
+		while (rs.next()) {
+			Student st = new Student(rs);
+			students.add(st);
 		}
-
+		rs.close();
+		stmt.close();
 		return students;
 	}
 
-	public Collection<Student> getStudentsFromGroup(Group group, int year) throws SQLException {
-		Collection<Student> students = new ArrayList<Student>();
-
-		PreparedStatement stmt = null;
-		ResultSet rs = null;
-		try {
-			stmt = con.prepareStatement("SELECT student_id, first_name, patronymic, sur_name, "
-					+ "sex, date_of_birth, group_id, education_year FROM students "
-					+ "WHERE group_id=? AND education_year=? " + "ORDER BY sur_name, first_name, patronymic");
-			stmt.setInt(1, group.getGroupId());
-			stmt.setInt(2, year);
-			rs = stmt.executeQuery();
-			while (rs.next()) {
-				Student st = new Student(rs);
-
-				students.add(st);
-			}
-		} finally {
-			if (rs != null) {
-				rs.close();
-			}
-			if (stmt != null) {
-				stmt.close();
-			}
+	public Collection getStudentsFromGroup(Group group, int year) throws SQLException {
+		Collection students = new ArrayList();
+		PreparedStatement stmt = con.prepareStatement("SELECT student_id, first_name, patronymic, sur_name, "
+				+ "sex, date_of_birth, group_id, education_year FROM students "
+				+ "WHERE group_id =  ? AND  education_year =  ? " + "ORDER BY sur_name, first_name, patronymic");
+		stmt.setInt(1, group.getGroupId());
+		stmt.setInt(2, year);
+		ResultSet rs = stmt.executeQuery();
+		while (rs.next()) {
+			Student st = new Student(rs);
+			students.add(st);
 		}
-
+		rs.close();
+		stmt.close();
 		return students;
+	}
+
+	public Student getStudentById(int studentId) throws SQLException {
+		Student student = null;
+		PreparedStatement stmt = con.prepareStatement("SELECT student_id, first_name, patronymic, sur_name,"
+				+ "sex, date_of_birth, group_id, education_year FROM students WHERE student_id = ?");
+		stmt.setInt(1, studentId);
+		ResultSet rs = stmt.executeQuery();
+		while (rs.next()) {
+			student = new Student(rs);
+		}
+		rs.close();
+		stmt.close();
+		return student;
 	}
 
 	public void moveStudentsToGroup(Group oldGroup, int oldYear, Group newGroup, int newYear) throws SQLException {
-		PreparedStatement stmt = null;
-		try {
-			stmt = con.prepareStatement(
-					"UPDATE students SET group_id=?, education_year=? " + "WHERE group_id=? AND education_year=?");
-			stmt.setInt(1, newGroup.getGroupId());
-			stmt.setInt(2, newYear);
-			stmt.setInt(3, oldGroup.getGroupId());
-			stmt.setInt(4, oldYear);
-			stmt.execute();
-		} finally {
-			if (stmt != null) {
-				stmt.close();
-			}
-		}
+		PreparedStatement stmt = con.prepareStatement(
+				"UPDATE students SET group_id =  ?, education_year=? " + "WHERE group_id =  ? AND  education_year = ?");
+		stmt.setInt(1, newGroup.getGroupId());
+		stmt.setInt(2, newYear);
+		stmt.setInt(3, oldGroup.getGroupId());
+		stmt.setInt(4, oldYear);
+		stmt.execute();
 	}
 
 	public void removeStudentsFromGroup(Group group, int year) throws SQLException {
-		PreparedStatement stmt = null;
-		try {
-			stmt = con.prepareStatement("DELETE FROM students WHERE group_id=? AND education_year=?");
-			stmt.setInt(1, group.getGroupId());
-			stmt.setInt(2, year);
-			stmt.execute();
-		} finally {
-			if (stmt != null) {
-				stmt.close();
-			}
-		}
+		PreparedStatement stmt = con.prepareStatement("DELETE FROM students WHERE group_id = ? AND education_year = ?");
+		stmt.setInt(1, group.getGroupId());
+		stmt.setInt(2, year);
+		stmt.execute();
 	}
 
 	public void insertStudent(Student student) throws SQLException {
-		PreparedStatement stmt = null;
-		try {
-			stmt = con.prepareStatement("INSERT INTO students "
-					+ "(first_name, patronymic, sur_name, sex, date_of_birth, group_id, education_year) "
-					+ "VALUES (?, ?, ?, ?, ?, ?, ?)");
-			stmt.setString(1, student.getFirstName());
-			stmt.setString(2, student.getPatronymic());
-			stmt.setString(3, student.getSurName());
-			stmt.setString(4, new String(new char[] { student.getSex() }));
-			stmt.setDate(5, new Date(student.getDateOfBirth().getTime()));
-			stmt.setInt(6, student.getGroupId());
-			stmt.setInt(7, student.getEducationYear());
-			stmt.execute();
-		} finally {
-			if (stmt != null) {
-				stmt.close();
-			}
-		}
+		PreparedStatement stmt = con.prepareStatement(
+				"INSERT INTO students " + "(first_name, patronymic, sur_name, sex, date_of_birth, group_id, education_year)"
+						+ "VALUES( ?,  ?,  ?,  ?,  ?,  ?,  ?)");
+		stmt.setString(1, student.getFirstName());
+		stmt.setString(2, student.getPatronymic());
+		stmt.setString(3, student.getSurName());
+		stmt.setString(4, new String(new char[] { student.getSex() }));
+		stmt.setDate(5, new Date(student.getDateOfBirth().getTime()));
+		stmt.setInt(6, student.getGroupId());
+		stmt.setInt(7, student.getEducationYear());
+		stmt.execute();
 	}
 
 	public void updateStudent(Student student) throws SQLException {
-		PreparedStatement stmt = null;
-		try {
-			stmt = con.prepareStatement("UPDATE students SET " + "first_name=?, patronymic=?, sur_name=?, "
-					+ "sex=?, date_of_birth=?, group_id=?, education_year=?" + "WHERE student_id=?");
-			stmt.setString(1, student.getFirstName());
-			stmt.setString(2, student.getPatronymic());
-			stmt.setString(3, student.getSurName());
-			stmt.setString(4, new String(new char[] { student.getSex() }));
-			stmt.setDate(5, new Date(student.getDateOfBirth().getTime()));
-			stmt.setInt(6, student.getGroupId());
-			stmt.setInt(7, student.getEducationYear());
-			stmt.setInt(8, student.getStudentId());
-			stmt.execute();
-		} finally {
-			if (stmt != null) {
-				stmt.close();
-			}
-		}
+		PreparedStatement stmt = con.prepareStatement(
+				"UPDATE students " + "SET first_name=?, patronymic=?, sur_name=?, sex=?, date_of_birth=?, group_id=?,"
+						+ "education_year=? WHERE student_id=?");
+		stmt.setString(1, student.getFirstName());
+		stmt.setString(2, student.getPatronymic());
+		stmt.setString(3, student.getSurName());
+		stmt.setString(4, new String(new char[] { student.getSex() }));
+		stmt.setDate(5, new Date(student.getDateOfBirth().getTime()));
+		stmt.setInt(6, student.getGroupId());
+		stmt.setInt(7, student.getEducationYear());
+		stmt.setInt(8, student.getStudentId());
+		stmt.execute();
 	}
 
 	public void deleteStudent(Student student) throws SQLException {
-		PreparedStatement stmt = null;
-		try {
-			stmt = con.prepareStatement("DELETE FROM students WHERE student_id=?");
-			stmt.setInt(1, student.getStudentId());
-			stmt.execute();
-		} finally {
-			if (stmt != null) {
-				stmt.close();
-			}
-		}
+		PreparedStatement stmt = con.prepareStatement("DELETE FROM students WHERE student_id =  ?");
+		stmt.setInt(1, student.getStudentId());
+		stmt.execute();
 	}
 }
